@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+	
+	<body>
+		<!-- Task HTML 1 --------------------------------------------------------------------------------------------- -->
+		<p>
+		<form method="post" enctype="multipart/form-data">
+			Task 1: Select EDI file to upload:
+			<input type="file" id="ediFile">
+		</form>
+		</p>
+		<p>
+			<ul id="ediList">
+			</ul>
+		</p>
+		
+		<!-- Task HTML 2 --------------------------------------------------------------------------------------------- -->
+		<p>
+		<form method="post" enctype="multipart/form-data">
+			Task 2: Select XML file to upload:
+			<input type="file" id="xmlFile1">
+		</form>
+		</p>
+		<p>
+			<ul id="xmlList1">
+			</ul>
+		</p>
+		
+		<!-- Task HTML 3 --------------------------------------------------------------------------------------------- -->
+		<p>
+		<form method="post" enctype="multipart/form-data">
+			Task 3: Select XML file to upload:
+			<input type="file" id="xmlFile2">
+		</form>
+		</p>
+		<p>
+			<ul id="xmlList2">
+			</ul>
+		</p>
+
+	</body>
+	
+	<script>
+		<!-- Task Function 1 --------------------------------------------------------------------------------------------- -->
+		function handleEdiFileSelect(evt) {
+			// Getting the file from the form 
+			var file = evt.target.files[0];
+			// Instantiating file reader Object 
+			var reader = new FileReader();
+			reader.readAsText(file);
+			
+			reader.onload = function() {
+				// Spliting the file go get an array of segments
+				let fileArray = reader.result.split('\n');
+				
+				let resultArray = [];
+				// Parsing lines to find LOC segments
+				for (let i = 0; i < fileArray.length; i++) {
+					let lineArray = fileArray[i].split("+")
+					
+					if(lineArray[0] === "LOC") {
+						// After finding LOC pushing first and second element to the resultArray
+						resultArray.push([lineArray[1], lineArray[2].replace("'", "")]);
+					}  
+				}
+				
+				// Populating HTML to display results 
+				let ediUl = document.getElementById('ediList');
+				resultArray.forEach( line => {
+					let li = document.createElement("li");
+					li.appendChild(document.createTextNode(`${line[0]}, ${line[1]}`));
+					ediUl.appendChild(li);
+				});
+			};
+			
+		}
+
+		<!-- Task Function 2 --------------------------------------------------------------------------------------------- -->
+		<!-- Assumption: File has no syntax error ----------------------------------------------------------------------- -->
+		function handleXmlSelect1(evt) {
+		// Getting the file from the form 
+			var file = evt.target.files[0];
+			// Instantiating file reader Object 
+			var reader = new FileReader();
+			reader.readAsText(file);
+			
+			reader.onload = function() {
+				
+				let text = reader.result 
+				// Creating a parser object
+				let parser = new DOMParser();
+				
+				// Parser creates a new XML DOM object using the text string:
+				let xmlDoc = parser.parseFromString(text,"text/xml");
+				// Getting the Reference from the XML object
+				let tagList = xmlDoc.getElementsByTagName("Reference");
+				
+				let refTexts = [];
+				// Parsing lines to find RefText values for the RefCodes MWB, TRV, CAR
+				for(let i = 0; i < tagList.length; i++) {
+					// Getting the RefCode value
+					let refCode = tagList[i].attributes.RefCode.value;
+					// Selecting the RedCodes where the values are MWB, TRV, CAR
+					if([ "MWB" , "TRV", "CAR"].includes(refCode)) {
+					// Extracting the RefText values 
+					let children = tagList[i].children
+						for(let j = 0; j < children.length; j ++) {
+							if(children[j].tagName === "RefText"){
+								refTexts.push([refCode, children[j].innerHTML])
+							}
+						}
+					}
+				}
+				// Populating HTML to display results 
+				
+				let xmlUl1 = document.getElementById('xmlList1');
+				refTexts.forEach( line => {
+					let li = document.createElement("li");
+					li.appendChild(document.createTextNode(`${line[0]}: ${line[1]}`));
+					xmlUl1.appendChild(li);
+				});
+			};
+			
+		}
+		
+		<!-- Task Function 3 --------------------------------------------------------------------------------------------- -->
+		function handleXmlSelect2(evt) {
+			var file = evt.target.files[0];
+			var reader = new FileReader();
+			reader.readAsText(file);
+
+			reader.onload = function() {
+				
+				let text = reader.result
+				// Creating a parser object
+				let parser = new DOMParser();
+				// Parser creates a new XML DOM object using the text string:
+				let xmlDoc = parser.parseFromString(text,"text/xml");
+				// Getting the Declaration and SiteID from the XML object
+				let declarationCom = xmlDoc.getElementsByTagName("Declaration")
+				let siteId = xmlDoc.getElementsByTagName("SiteID")
+				
+				let result = [];
+				// Parsing lines to find Command attribute within the Declaration and to check it's value
+				for(let i = 0; i < declarationCom.length; i++) {
+					let decAttr = declarationCom[i].attributes
+					for(let j = 0; j < decAttr.length; j++) {
+						if(decAttr[j].name === "Command" && decAttr[j].value !== "DEFAULT") {
+							result.push(-1);
+						}
+					}	
+				}
+				// Parsing lines to check the value of SiteID 
+				for(let i = 0; i < siteId.length; i++) {
+					let idArray = siteId[i].childNodes
+					console.log(idArray)
+					for(let j = 0; j < idArray.length; j++) {
+						if(idArray[j].nodeValue !== "DUB") {
+							result.push(-2);
+							
+						}
+					}	
+				}
+				// Checking if there are any errors (if array is empty assinging the 0 - meaning everithing is proccesing correctly)
+				if(result.length === 0){
+					result.push(0)
+				}
+				// Populating HTML to display results 
+				document.getElementById('xmlList2').innerHTML = result;
+			};
+		}
+		
+		<!-- Listeners --------------------------------------------------------------------------------------------- -->
+		document.getElementById('ediFile').addEventListener('change', handleEdiFileSelect, false);
+		document.getElementById('xmlFile1').addEventListener('change', handleXmlSelect1, false);
+		document.getElementById('xmlFile2').addEventListener('change', handleXmlSelect2, false);
+		
+	</script>
+</html>
